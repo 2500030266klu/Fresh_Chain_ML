@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="container page-content">
+
+  <!-- Header -->
+  <div class="page-header page-header-row">
+    <div>
+      <div class="hero-pill">
+        <span>📂 High-Throughput Inference Engine</span>
+      </div>
+      <h1 class="page-title hero-title">
+        Batch Produce <span class="page-title-gradient hero-title-gradient">Quality Classification</span>
+      </h1>
+      <p class="page-subtitle hero-subtitle">
+        Upload multi-sensor batch logs in CSV format. The deployed model will infer freshness status, 
+        calculate confidence levels, and generate an enriched downloadable report.
+      </p>
+    </div>
+
+    <!-- Download Sample CSV Button -->
+    <a href="/api/sample-csv" class="btn btn-secondary" style="padding: 0.75rem 1.25rem; font-size: 0.88rem;">
+      <span>📥</span> Download Sample CSV Template
+    </a>
+  </div>
+
+  <!-- Drag-and-Drop Area -->
+  <div class="glass-panel dropzone-container" id="batch-dropzone">
+    <div class="dropzone-icon">☁️</div>
+    <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem;">
+      Drag & Drop Your Sensor CSV File Here
+    </h3>
+    <p id="upload-prompt" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
+      or click anywhere to browse your local filesystem (.csv files supported)
+    </p>
+    <input type="file" id="file-input" accept=".csv" style="display: none;">
+    <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('file-input').click();">
+      <span>📁</span> Select CSV File
+    </button>
+  </div>
+
+  <!-- Results Section (Initially Hidden, Activated via JS) -->
+  <div id="batch-results-area" style="display: none;">
+
+    <!-- Summary Metrics Ribbon -->
+    <div class="metrics-ribbon">
+      <div class="glass-panel metric-card">
+        <div class="metric-icon-wrap icon-indigo">📋</div>
+        <div>
+          <div class="metric-val" id="b-total">0</div>
+          <div class="metric-lbl">Total Samples</div>
+        </div>
+      </div>
+      <div class="glass-panel metric-card">
+        <div class="metric-icon-wrap icon-emerald">🌿</div>
+        <div>
+          <div class="metric-val" id="b-good" style="color: var(--emerald-glow);">0</div>
+          <div class="metric-lbl">Classified Fresh</div>
+        </div>
+      </div>
+      <div class="glass-panel metric-card">
+        <div class="metric-icon-wrap icon-amber">⚠️</div>
+        <div>
+          <div class="metric-val" id="b-bad" style="color: var(--rose-glow);">0</div>
+          <div class="metric-lbl">Classified Spoiled</div>
+        </div>
+      </div>
+      <div class="glass-panel metric-card">
+        <div class="metric-icon-wrap icon-cyan">🎯</div>
+        <div>
+          <div class="metric-val" id="b-rate">0%</div>
+          <div class="metric-lbl">Batch Freshness Rate</div>
+        </div>
+      </div>
+      <div class="glass-panel metric-card">
+        <div class="metric-icon-wrap icon-emerald">⚡</div>
+        <div>
+          <div class="metric-val" id="b-conf">0%</div>
+          <div class="metric-lbl">Avg Confidence</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Enriched Table Preview -->
+    <div class="glass-panel" style="padding: 1.75rem;">
+      <div class="section-header">
+        <div>
+          <div class="section-title">
+            <span>📊</span> Classified Batch Records & Cold-Chain Telemetry
+          </div>
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+            Automated ML inference enriched with Dew Point, Vapor Pressure Deficit (VPD), Market Grade, and Q10 Shelf-Life predictions.
+          </p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+          <button id="btn-print-audit" class="btn btn-secondary" style="display: none; padding: 0.6rem 1rem; font-size: 0.82rem;">
+            <span>📋</span> Print QA Audit Sheet
+          </button>
+          <button id="btn-download-enriched" class="btn btn-emerald" style="display: none; padding: 0.6rem 1.2rem;">
+            <span>💾</span> Download Enriched CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Filter Bar -->
+      <div class="batch-filter-bar" id="batch-filter-bar">
+        <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-right: 0.25rem;">FILTER RECORDS:</span>
+        <button type="button" class="batch-filter-btn active" data-filter="all">All Records</button>
+        <button type="button" class="batch-filter-btn" data-filter="good">🌿 Fresh Only</button>
+        <button type="button" class="batch-filter-btn" data-filter="bad">⚠️ Spoiled Only</button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Fruit</th>
+              <th>Temp</th>
+              <th>Humidity</th>
+              <th>Dew Point</th>
+              <th>VPD</th>
+              <th>CO2</th>
+              <th>Classification</th>
+              <th>Score</th>
+              <th>Market Grade</th>
+              <th>Est. Shelf Life</th>
+            </tr>
+          </thead>
+          <tbody id="batch-table-body">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</section>
+{% endblock %}

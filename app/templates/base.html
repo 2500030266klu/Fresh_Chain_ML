@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Fruit & Vegetable Spoilage Intelligence System - Real-time ML produce freshness prediction and sensor telemetry analysis.">
+  <title>{{ page_title }} | Produce Quality Intelligence</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js CDN for Dynamic Visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  <!-- Theme & Font Initialization (Prevents Layout Shifts & Flashes on Navigation) -->
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('freshIQ_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        const savedFruitTheme = localStorage.getItem('freshIQ_fruit_theme') || 'spectrum';
+        document.documentElement.setAttribute('data-fruit-theme', savedFruitTheme);
+
+        const fontSizes = ['13px', '14.5px', '16px', '18px', '20px'];
+        const fontIdx = parseInt(localStorage.getItem('freshIQ_font_index') || '2', 10);
+        if (fontIdx >= 0 && fontIdx < fontSizes.length) {
+          document.documentElement.style.setProperty('--base-font-size', fontSizes[fontIdx]);
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <nav class="navbar">
+    <div class="container nav-wrapper">
+      <a href="{{ url_for('main.index') }}" class="brand-logo">
+        <div class="brand-icon">🌱</div>
+        <div>
+          <div class="brand-title">FreshIQ ML</div>
+          <div class="brand-sub">Spoilage Telemetry System</div>
+        </div>
+      </a>
+
+      <!-- Center Links -->
+      <ul class="nav-links">
+        <li>
+          <a href="{{ url_for('main.index') }}" class="nav-link {% if active_page == 'predictor' %}active{% endif %}">
+            <span>⚡</span> Real-Time Predictor
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('main.eda') }}" class="nav-link {% if active_page == 'eda' %}active{% endif %}">
+            <span>📊</span> Sensor Analytics
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('main.models') }}" class="nav-link {% if active_page == 'models' %}active{% endif %}">
+            <span>🏆</span> Model Benchmarks
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('main.lifecycle') }}" class="nav-link {% if active_page == 'lifecycle' %}active{% endif %}">
+            <span>🔄</span> Lifecycle
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('main.batch') }}" class="nav-link {% if active_page == 'batch' %}active{% endif %}">
+            <span>📂</span> Batch Inference
+          </a>
+        </li>
+      </ul>
+
+      <!-- Controls Right: Theme Toggle & Status -->
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <!-- Bright / Dark Mode Switcher -->
+        <button id="theme-toggle" class="theme-toggle-btn" title="Toggle Bright / Dark Mode" aria-label="Toggle Bright / Dark Mode">
+          <span class="theme-icon sun-icon">☀️</span>
+          <span class="theme-icon moon-icon">🌙</span>
+          <span class="theme-mode-text" id="theme-mode-text">Dark</span>
+        </button>
+
+        <!-- PPTX Presentation Download -->
+        <a href="{{ url_for('main.serve_output_file', filename='FreshIQ_Produce_Spoilage_Intelligence.pptx') }}" download class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.76rem; text-decoration: none; display: flex; align-items: center; gap: 0.35rem;" title="Download Full Project Presentation PPTX">
+          <span>📊</span> PPTX
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Professional Produce Ambient Atmosphere Layer -->
+  <canvas id="produce-ambient-canvas" class="produce-ambient-canvas"></canvas>
+
+  <!-- Floating Corner Accessibility & Appearance Dock -->
+  <div id="corner-dock" class="corner-control-dock">
+    <!-- Theme Toggle Icon -->
+    <button id="corner-theme-toggle" class="corner-dock-btn" title="Toggle Bright / Dark Mode" aria-label="Toggle Bright / Dark Mode">
+      <span class="corner-icon sun-icon">☀️</span>
+      <span class="corner-icon moon-icon">🌙</span>
+      <span class="corner-tooltip">Theme Mode</span>
+    </button>
+
+    <div class="dock-divider"></div>
+
+    <!-- Font Size Controls -->
+    <div class="font-controls-group">
+      <button id="font-decrease" class="corner-dock-btn" title="Decrease Font Size" aria-label="Decrease Font Size">
+        <span style="font-size: 0.75rem; font-weight: 800;">A-</span>
+        <span class="corner-tooltip">Smaller Text</span>
+      </button>
+      <button id="font-reset" class="corner-dock-btn" title="Default Font Size" aria-label="Reset Font Size">
+        <span style="font-size: 0.9rem; font-weight: 800;">A</span>
+        <span class="corner-tooltip">Default Size</span>
+      </button>
+      <button id="font-increase" class="corner-dock-btn" title="Increase Font Size" aria-label="Increase Font Size">
+        <span style="font-size: 1.05rem; font-weight: 800;">A+</span>
+        <span class="corner-tooltip">Larger Text</span>
+      </button>
+    </div>
+
+    <div class="dock-divider"></div>
+
+    <!-- Professional Fruit Theme Atmosphere Selector -->
+    <button id="fruit-bg-cycle" class="corner-dock-btn fruit-theme-cycle-btn" title="Change Fruit Atmosphere Theme" aria-label="Change Fruit Atmosphere Theme">
+      <span class="theme-palette-swatch" id="theme-swatch-indicator"></span>
+      <span class="corner-tooltip" id="bg-fruit-label">Theme: FreshIQ Spectrum</span>
+    </button>
+  </div>
+
+  <!-- Lightbox Modal for Visualizations -->
+  <div id="image-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title" style="font-size: 1.1rem;">Plot Preview</h3>
+        <button id="modal-close" class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;">✕ Close</button>
+      </div>
+      <div class="modal-body">
+        <img id="modal-img" class="modal-img" src="" alt="High resolution plot">
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p style="margin-bottom: 0.4rem; font-weight: 600; color: var(--text-secondary);">
+        Fruit & Vegetable Spoilage Intelligence Platform &copy; 2026
+      </p>
+      <p style="font-size: 0.78rem;">
+        Powered by Flask &bull; Scikit-Learn Ensemble Architecture &bull; 6,953 Multi-Sensor Environmental Telemetry Samples
+      </p>
+    </div>
+  </footer>
+
+  <!-- Main JS Logic -->
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

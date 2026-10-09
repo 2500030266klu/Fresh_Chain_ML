@@ -1,0 +1,856 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="container page-content" style="padding-top: 1.5rem; padding-bottom: 3.5rem;">
+
+  <!-- Header -->
+  <div class="page-header" style="margin-bottom: 1.75rem;">
+    <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem;">
+      <span class="badge-pill badge-good" style="font-size: 0.75rem;">Pure Mathematical Analysis</span>
+      <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--cyan-glow); font-size: 0.75rem;" id="active-dataset-pill">
+        Active: {{ analysis.source_name }} ({{ analysis.total_rows }} rows)
+      </span>
+    </div>
+    <h1 class="page-title hero-title" style="margin-bottom: 0.5rem;">
+      Dataset & Environmental <span class="page-title-gradient hero-title-gradient">Telemetry Analytics</span>
+    </h1>
+    <p class="page-subtitle hero-subtitle" style="max-width: 860px; line-height: 1.5;">
+      Authentic statistical profiling, physical psychrometrics, and interactive visualizations. Upload your cold-chain telemetry dataset to compute pure, unhyped distributions and real model evaluations. Strict schema validation rejects non-telemetry files.
+    </p>
+  </div>
+
+  <!-- Real Dataset Ingestion & Validation Zone -->
+  <div class="glass-panel" style="padding: 1.75rem; margin-bottom: 2.25rem;">
+    <div class="section-header" style="margin-bottom: 1.25rem;">
+      <div>
+        <div class="section-title">
+          <span>📂</span> Telemetry Dataset Ingestion & Strict Schema Validator
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+          Only authentic produce cold-chain datasets with required sensor channels are accepted. Arbitrary non-telemetry files are strictly rejected.
+        </p>
+      </div>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <a href="{{ url_for('main.api_sample_csv') }}" download class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;">
+          <span>📥</span> Download Sample Telemetry CSV
+        </a>
+        <button id="btn-reset-default" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;">
+          <span>🔄</span> Reset to Default (6,953 rows)
+        </button>
+      </div>
+    </div>
+
+    <!-- Upload Input Box -->
+    <div style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; background: var(--bg-secondary); border: 2px dashed var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem;" id="drop-zone">
+      <div>
+        <input type="file" id="dataset-file-input" accept=".csv" style="display: none;">
+        <label for="dataset-file-input" style="cursor: pointer; display: flex; align-items: center; gap: 0.75rem;">
+          <span style="font-size: 2rem;">📊</span>
+          <div>
+            <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;" id="file-chosen-text">
+              Choose or Drop Telemetry CSV Dataset File
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+              Required columns: <code>Fruit</code>, <code>Temp</code>, <code>Humidity (%)</code>, <code>Light (Lux)</code>, <code>CO2 (ppm)</code> [optional: <code>Class</code>]
+            </div>
+          </div>
+        </label>
+      </div>
+      <div>
+        <button id="btn-run-analysis" class="btn btn-primary" style="padding: 0.65rem 1.35rem; font-size: 0.9rem;" disabled>
+          <span>⚡</span> Analyze Uploaded Dataset
+        </button>
+      </div>
+    </div>
+
+    <!-- Alert / Validation Feedback Banner -->
+    <div id="validation-alert" style="display: none; margin-top: 1rem; padding: 0.9rem 1.2rem; border-radius: var(--radius-md); font-size: 0.88rem; line-height: 1.45;"></div>
+  </div>
+
+  <!-- Metric Overview Ribbon -->
+  <div class="metrics-ribbon" id="metrics-ribbon" style="margin-bottom: 2.25rem;">
+    <div class="glass-panel metric-card">
+      <div class="metric-icon-wrap icon-emerald">📈</div>
+      <div>
+        <div class="metric-val" id="metric-total-rows">{{ analysis.total_rows }}</div>
+        <div class="metric-lbl">Total Telemetry Observations</div>
+      </div>
+    </div>
+    <div class="glass-panel metric-card">
+      <div class="metric-icon-wrap icon-indigo">🏷️</div>
+      <div>
+        <div class="metric-val" id="metric-total-cols">{{ analysis.total_cols }} Columns</div>
+        <div class="metric-lbl">Sensors + Produce + Physics</div>
+      </div>
+    </div>
+    <div class="glass-panel metric-card">
+      <div class="metric-icon-wrap icon-cyan">✨</div>
+      <div>
+        <div class="metric-val" id="metric-missing-vals">
+          {% set total_nulls = analysis.missing_values.values() | sum %}
+          {{ total_nulls }} Nulls
+        </div>
+        <div class="metric-lbl">Verified Clean Records</div>
+      </div>
+    </div>
+    <div class="glass-panel metric-card">
+      <div class="metric-icon-wrap icon-amber">⚖️</div>
+      <div>
+        <div class="metric-val" id="metric-freshness-rate">{{ analysis.freshness_rate }}% Fresh</div>
+        <div class="metric-lbl">Spoilage: <span id="metric-spoilage-rate">{{ analysis.spoilage_rate }}%</span></div>
+      </div>
+    </div>
+    <div class="glass-panel metric-card">
+      <div class="metric-icon-wrap icon-indigo">🌡️</div>
+      <div>
+        <div class="metric-val" id="metric-dew-point">{{ analysis.physics_stats.dew_point.mean }}°C</div>
+        <div class="metric-lbl">Magnus Dew Point Mean</div>
+      </div>
+    </div>
+    <div class="glass-panel metric-card">
+      <div class="metric-icon-wrap icon-cyan">💧</div>
+      <div>
+        <div class="metric-val" id="metric-vpd">{{ analysis.physics_stats.vpd.mean }} kPa</div>
+        <div class="metric-lbl">VPD Transpiration Index</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visuals Row 1: Target Balance & Varietal Distribution -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    
+    <!-- Chart 1: Target Class Balance -->
+    <div class="glass-panel" style="padding: 1.5rem;">
+      <div class="section-header">
+        <div class="section-title" style="font-size: 1.05rem;">
+          <span>⚖️</span> Target Freshness vs Spoilage Balance
+        </div>
+        <span class="section-badge" id="badge-class-count">{{ analysis.class_counts.Good }} Good / {{ analysis.class_counts.Bad }} Bad</span>
+      </div>
+      <div style="position: relative; height: 260px;">
+        <canvas id="classBalanceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 2: Fruit Variety Share -->
+    <div class="glass-panel" style="padding: 1.5rem;">
+      <div class="section-header">
+        <div class="section-title" style="font-size: 1.05rem;">
+          <span>🥧</span> Produce Variety Distribution
+        </div>
+        <span class="section-badge">{{ analysis.fruit_counts | length }} Categories</span>
+      </div>
+      <div style="position: relative; height: 260px;">
+        <canvas id="fruitChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 3: Quality Breakdown per Produce -->
+    <div class="glass-panel" style="padding: 1.5rem;">
+      <div class="section-header">
+        <div class="section-title" style="font-size: 1.05rem;">
+          <span>📊</span> Spoilage Breakdown by Variety
+        </div>
+        <span class="section-badge">Good vs Bad</span>
+      </div>
+      <div style="position: relative; height: 260px;">
+        <canvas id="qualityChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Visuals Row 2: Dynamic Sensor Histogram & Scatter Plot -->
+  <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    
+    <!-- Dynamic Histogram with Sensor Channel Selector Tabs -->
+    <div class="glass-panel" style="padding: 1.5rem;">
+      <div class="section-header" style="flex-wrap: wrap; gap: 0.75rem;">
+        <div>
+          <div class="section-title" style="font-size: 1.05rem;">
+            <span>📈</span> Sensor Feature Frequency Distribution (Histogram)
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Pure 10-bin frequency distribution computed on active telemetry observations.
+          </p>
+        </div>
+        
+        <!-- Sensor Selector Buttons -->
+        <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;" id="hist-sensor-buttons">
+          <button class="btn btn-secondary active hist-btn" data-sensor="Temp" style="font-size: 0.76rem; padding: 0.35rem 0.65rem;">Temp</button>
+          <button class="btn btn-secondary hist-btn" data-sensor="Humidity (%)" style="font-size: 0.76rem; padding: 0.35rem 0.65rem;">Humidity</button>
+          <button class="btn btn-secondary hist-btn" data-sensor="Light (Lux)" style="font-size: 0.76rem; padding: 0.35rem 0.65rem;">Light</button>
+          <button class="btn btn-secondary hist-btn" data-sensor="CO2 (ppm)" style="font-size: 0.76rem; padding: 0.35rem 0.65rem;">CO2</button>
+        </div>
+      </div>
+
+      <div style="position: relative; height: 280px;">
+        <canvas id="histogramChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Bivariate Microclimate Scatter Plot -->
+    <div class="glass-panel" style="padding: 1.5rem;">
+      <div class="section-header">
+        <div>
+          <div class="section-title" style="font-size: 1.05rem;">
+            <span>🔬</span> Microclimate Bivariate Scatter
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Temperature (°C) vs CO2 (ppm) colored by Freshness.
+          </p>
+        </div>
+        <span class="section-badge">Real Telemetry</span>
+      </div>
+
+      <div style="position: relative; height: 280px;">
+        <canvas id="scatterChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Visuals Row 3: Five-Number Descriptive Stats & Correlation Matrix -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem;">
+    
+    <!-- Five-Number Descriptive Stats Table -->
+    <div class="glass-panel" style="padding: 1.5rem;">
+      <div class="section-header">
+        <div class="section-title" style="font-size: 1.05rem;">
+          <span>📐</span> Continuous Sensor Statistics (Five-Number Summary)
+        </div>
+        <span class="section-badge">Descriptive</span>
+      </div>
+      
+      <div style="overflow-x: auto;">
+        <table class="custom-table" style="font-size: 0.83rem;">
+          <thead>
+            <tr>
+              <th>Sensor</th>
+              <th style="text-align: right;">Mean ± Std</th>
+              <th style="text-align: right;">Min</th>
+              <th style="text-align: right;">Median (Q2)</th>
+              <th style="text-align: right;">Max</th>
+            </tr>
+          </thead>
+          <tbody id="stats-table-body">
+            {% for col, st in analysis.numeric_stats.items() %}
+            <tr>
+              <td><strong>{{ col }}</strong></td>
+              <td style="text-align: right; font-family: 'JetBrains Mono';">{{ st.mean }} ± {{ st.std }}</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono'; color: var(--text-muted);">{{ st.min }}</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono'; color: var(--cyan-glow);">{{ st.median }}</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono'; color: var(--amber-glow);">{{ st.max }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pearson Correlation Matrix Grid -->
+    <div class="glass-panel" style="padding: 1.5rem;">
+      <div class="section-header">
+        <div class="section-title" style="font-size: 1.05rem;">
+          <span>🌐</span> Pearson Correlation Matrix (Linear Associations)
+        </div>
+        <span class="section-badge">r ∈ [-1.0, +1.0]</span>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="custom-table" style="font-size: 0.8rem; text-align: center;" id="corr-table">
+          <thead>
+            <tr>
+              <th style="text-align: left;">Channel</th>
+              <th>Temp</th>
+              <th>Humidity</th>
+              <th>Light</th>
+              <th>CO2</th>
+              <th>DewPoint</th>
+              <th>VPD</th>
+            </tr>
+          </thead>
+          <tbody id="corr-table-body">
+            {% for row_key, row_vals in analysis.correlation_matrix.items() %}
+            <tr>
+              <td style="text-align: left; font-weight: 700;">{{ row_key }}</td>
+              {% for col_key, r_val in row_vals.items() %}
+              <td style="font-family: 'JetBrains Mono'; color: {% if r_val > 0.4 %}#34d399{% elif r_val < -0.4 %}#f87171{% elif r_val == 1.0 %}#ffffff{% else %}#94a3b8{% endif %}; font-weight: {% if r_val == 1.0 %}800{% else %}600{% endif %};">
+                {{ r_val }}
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Model Performance on Active Dataset Banner -->
+  {% if analysis.model_eval.evaluated %}
+  <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 2.5rem; border: 1px solid rgba(16, 185, 129, 0.35);">
+    <div class="section-header">
+      <div>
+        <div class="section-title" style="font-size: 1.05rem;">
+          <span>🏆</span> Champion Model Performance on Active Telemetry Data
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+          Real evaluation of the deployed <strong>{{ analysis.model_eval.champion_name }}</strong> pipeline on the currently loaded dataset.
+        </p>
+      </div>
+      <span class="badge-pill badge-good" style="font-size: 0.75rem;">Champion Evaluated</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem;">
+      <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-md); text-align: center;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Accuracy</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: var(--emerald-glow); margin: 0.25rem 0;" id="eval-accuracy">
+          {{ analysis.model_eval.accuracy }}%
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">True Fresh + True Spoil</div>
+      </div>
+
+      <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-md); text-align: center;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Precision</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: var(--cyan-glow); margin: 0.25rem 0;" id="eval-precision">
+          {{ analysis.model_eval.precision }}%
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Spurious Alarm Rejection</div>
+      </div>
+
+      <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-md); text-align: center;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Recall</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: var(--purple-glow); margin: 0.25rem 0;" id="eval-recall">
+          {{ analysis.model_eval.recall }}%
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Spoilage Catch Rate</div>
+      </div>
+
+      <div style="background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-md); text-align: center;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">F1-Score</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: var(--amber-glow); margin: 0.25rem 0;" id="eval-f1">
+          {{ analysis.model_eval.f1 }}%
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Harmonic Mean</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Raw Data Sample Inspector -->
+  <div class="glass-panel" style="padding: 1.75rem; margin-bottom: 2.5rem;">
+    <div class="section-header">
+      <div>
+        <div class="section-title">
+          <span>📑</span> Active Telemetry Observations Preview
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+          First 25 verified records from the active dataset.
+        </p>
+      </div>
+      <input type="text" id="table-search" placeholder="Search by fruit or class..." 
+             style="background: var(--bg-secondary); border: 1px solid var(--border-glass); color: var(--text-primary); padding: 0.45rem 0.9rem; border-radius: var(--radius-md); font-size: 0.85rem; outline: none;">
+    </div>
+
+    <div class="table-responsive">
+      <table class="custom-table" id="eda-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fruit</th>
+            <th>Temp (°C)</th>
+            <th>Humidity (%)</th>
+            <th>Light (Lux)</th>
+            <th>CO2 (ppm)</th>
+            <th>Class</th>
+          </tr>
+        </thead>
+        <tbody id="preview-table-body">
+          {% for row in preview_rows %}
+          <tr>
+            <td style="color: var(--text-muted); font-size: 0.8rem;">{{ loop.index }}</td>
+            <td><strong>{{ row.Fruit }}</strong></td>
+            <td>{{ row.Temp }}°C</td>
+            <td>{{ row['Humidity (%)'] }}%</td>
+            <td>{{ row['Light (Lux)'] }} Lux</td>
+            <td>{{ row['CO2 (ppm)'] }} ppm</td>
+            <td>
+              {% if row.Class == 'Good' %}
+              <span class="badge-pill badge-good">✓ Good</span>
+              {% elif row.Class == 'Bad' %}
+              <span class="badge-pill badge-bad">⚠️ Bad</span>
+              {% else %}
+              <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-muted);">{{ row.Class or 'Unlabelled' }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- High-Resolution Exported Plots Showcase -->
+  <div style="margin-bottom: 3rem;">
+    <div class="section-header">
+      <div>
+        <div class="section-title">
+          <span>🖼️</span> Generated Statistical Figure Gallery
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+          High-fidelity plots exported directly by our automated EDA pipeline to <code>outputs/</code>.
+        </p>
+      </div>
+    </div>
+
+    <div class="gallery-grid">
+      {% for plot in plots %}
+      {% if plot.exists %}
+      <div class="glass-panel gallery-card">
+        <div class="gallery-img-wrap">
+          <img src="{{ url_for('main.serve_output_file', filename=plot.filename) }}" alt="{{ plot.title }}" class="gallery-img">
+        </div>
+        <div class="gallery-info">
+          <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem;">{{ plot.title }}</h4>
+          <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">{{ plot.description }}</p>
+          <button type="button" class="btn btn-secondary btn-zoom-plot" style="width: 100%; padding: 0.4rem; font-size: 0.8rem;"
+                  data-img="{{ url_for('main.serve_output_file', filename=plot.filename) }}"
+                  data-title="{{ plot.title }}">
+            <span>🔍</span> Expand High-Res
+          </button>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  let activeAnalysis = {{ analysis | tojson }};
+  let charts = {};
+
+  // Color Constants
+  const C_GOOD = '#10b981';
+  const C_BAD = '#f43f5e';
+  const C_CYAN = '#38bdf8';
+  const C_PURPLE = '#a78bfa';
+  const C_AMBER = '#f59e0b';
+  const FRUIT_COLORS = ['#f97316', '#eab308', '#ec4899', '#84cc16', '#06b6d4', '#8b5cf6'];
+
+  // Initialize All Charts
+  function renderAllCharts(data) {
+    // 1. Target Class Balance Donut
+    const ctxClass = document.getElementById('classBalanceChart').getContext('2d');
+    if (charts.classBalance) charts.classBalance.destroy();
+
+    const goodCnt = data.class_counts.Good || 0;
+    const badCnt = data.class_counts.Bad || 0;
+    charts.classBalance = new Chart(ctxClass, {
+      type: 'doughnut',
+      data: {
+        labels: ['Fresh (Good)', 'Spoiled (Bad)'],
+        datasets: [{
+          data: [goodCnt, badCnt],
+          backgroundColor: [C_GOOD, C_BAD],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } } },
+          tooltip: {
+            callbacks: {
+              label: (item) => {
+                const total = goodCnt + badCnt;
+                const pct = total > 0 ? ((item.raw / total) * 100).toFixed(1) : 0;
+                return ` ${item.label}: ${item.raw.toLocaleString()} (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // 2. Fruit Variety Doughnut
+    const ctxFruit = document.getElementById('fruitChart').getContext('2d');
+    if (charts.fruit) charts.fruit.destroy();
+
+    const fruitLabels = Object.keys(data.fruit_counts);
+    const fruitVals = Object.values(data.fruit_counts);
+    charts.fruit = new Chart(ctxFruit, {
+      type: 'doughnut',
+      data: {
+        labels: fruitLabels,
+        datasets: [{
+          data: fruitVals,
+          backgroundColor: FRUIT_COLORS.slice(0, fruitLabels.length),
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } } }
+        }
+      }
+    });
+
+    // 3. Quality Breakdown per Produce (Grouped Bar)
+    const ctxQuality = document.getElementById('qualityChart').getContext('2d');
+    if (charts.quality) charts.quality.destroy();
+
+    const fruits = Object.keys(data.fruit_class_matrix);
+    const goodData = fruits.map(f => data.fruit_class_matrix[f].Good || 0);
+    const badData = fruits.map(f => data.fruit_class_matrix[f].Bad || 0);
+
+    charts.quality = new Chart(ctxQuality, {
+      type: 'bar',
+      data: {
+        labels: fruits,
+        datasets: [
+          { label: 'Fresh (Good)', data: goodData, backgroundColor: C_GOOD, borderRadius: 6 },
+          { label: 'Spoiled (Bad)', data: badData, backgroundColor: C_BAD, borderRadius: 6 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } } }
+        },
+        scales: {
+          x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+
+    // 4. Sensor Frequency Histogram
+    renderHistogram(data, 'Temp');
+
+    // 5. Bivariate Microclimate Scatter Plot
+    const ctxScatter = document.getElementById('scatterChart').getContext('2d');
+    if (charts.scatter) charts.scatter.destroy();
+
+    const goodPoints = (data.scatter_points || []).filter(p => p.class === 'Good').map(p => ({ x: p.temp, y: p.co2 }));
+    const badPoints = (data.scatter_points || []).filter(p => p.class === 'Bad').map(p => ({ x: p.temp, y: p.co2 }));
+
+    charts.scatter = new Chart(ctxScatter, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Fresh Produce',
+            data: goodPoints,
+            backgroundColor: 'rgba(16, 185, 129, 0.75)',
+            borderColor: C_GOOD,
+            pointRadius: 4.5,
+            pointHoverRadius: 7
+          },
+          {
+            label: 'Spoiled Produce',
+            data: badPoints,
+            backgroundColor: 'rgba(244, 63, 94, 0.75)',
+            borderColor: C_BAD,
+            pointRadius: 4.5,
+            pointHoverRadius: 7
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } } },
+          tooltip: {
+            callbacks: {
+              label: (it) => ` Temp: ${it.raw.x}°C | CO2: ${it.raw.y} ppm`
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Temperature (°C)', color: '#94a3b8' },
+            ticks: { color: '#94a3b8' },
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          },
+          y: {
+            title: { display: true, text: 'CO2 Concentration (ppm)', color: '#94a3b8' },
+            ticks: { color: '#94a3b8' },
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          }
+        }
+      }
+    });
+  }
+
+  // Render Histogram for Chosen Sensor Channel
+  function renderHistogram(data, sensor) {
+    const histInfo = data.histograms[sensor];
+    if (!histInfo) return;
+
+    const ctxHist = document.getElementById('histogramChart').getContext('2d');
+    if (charts.histogram) charts.histogram.destroy();
+
+    charts.histogram = new Chart(ctxHist, {
+      type: 'bar',
+      data: {
+        labels: histInfo.labels,
+        datasets: [{
+          label: `${sensor} Frequency Count`,
+          data: histInfo.counts,
+          backgroundColor: 'rgba(56, 189, 248, 0.75)',
+          borderColor: C_CYAN,
+          borderWidth: 1,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (it) => ` Bin ${it.label}: ${it.raw} samples`
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: {
+            title: { display: true, text: 'Observation Frequency', color: '#94a3b8' },
+            ticks: { color: '#94a3b8' },
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          }
+        }
+      }
+    });
+  }
+
+  // Update UI Elements with New Analysis Data
+  function updateUI(data) {
+    activeAnalysis = data;
+
+    // Header pills
+    document.getElementById('active-dataset-pill').innerText = `Active: ${data.source_name} (${data.total_rows.toLocaleString()} rows)`;
+    document.getElementById('badge-class-count').innerText = `${(data.class_counts.Good || 0).toLocaleString()} Good / ${(data.class_counts.Bad || 0).toLocaleString()} Bad`;
+
+    // Metrics Ribbon
+    document.getElementById('metric-total-rows').innerText = data.total_rows.toLocaleString();
+    document.getElementById('metric-total-cols').innerText = `${data.total_cols} Columns`;
+    const totalNulls = Object.values(data.missing_values).reduce((a, b) => a + b, 0);
+    document.getElementById('metric-missing-vals').innerText = `${totalNulls} Nulls`;
+    document.getElementById('metric-freshness-rate').innerText = `${data.freshness_rate}% Fresh`;
+    document.getElementById('metric-spoilage-rate').innerText = `${data.spoilage_rate}%`;
+    document.getElementById('metric-dew-point').innerText = `${data.physics_stats.dew_point.mean}°C`;
+    document.getElementById('metric-vpd').innerText = `${data.physics_stats.vpd.mean} kPa`;
+
+    // Update Stats Table Body
+    const statsBody = document.getElementById('stats-table-body');
+    if (statsBody) {
+      statsBody.innerHTML = Object.entries(data.numeric_stats).map(([col, st]) => `
+        <tr>
+          <td><strong>${col}</strong></td>
+          <td style="text-align: right; font-family: 'JetBrains Mono';">${st.mean} ± ${st.std}</td>
+          <td style="text-align: right; font-family: 'JetBrains Mono'; color: var(--text-muted);">${st.min}</td>
+          <td style="text-align: right; font-family: 'JetBrains Mono'; color: var(--cyan-glow);">${st.median}</td>
+          <td style="text-align: right; font-family: 'JetBrains Mono'; color: var(--amber-glow);">${st.max}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Update Correlation Table Body
+    const corrBody = document.getElementById('corr-table-body');
+    if (corrBody && data.correlation_matrix) {
+      corrBody.innerHTML = Object.entries(data.correlation_matrix).map(([rowKey, rowVals]) => `
+        <tr>
+          <td style="text-align: left; font-weight: 700;">${rowKey}</td>
+          ${Object.entries(rowVals).map(([colKey, rVal]) => {
+            let color = '#94a3b8';
+            if (rVal > 0.4) color = '#34d399';
+            else if (rVal < -0.4) color = '#f87171';
+            else if (rVal === 1.0) color = '#ffffff';
+            return `<td style="font-family: 'JetBrains Mono'; color: ${color}; font-weight: ${rVal === 1.0 ? '800' : '600'};">${rVal}</td>`;
+          }).join('')}
+        </tr>
+      `).join('');
+    }
+
+    // Update Preview Table Body
+    const previewBody = document.getElementById('preview-table-body');
+    if (previewBody && data.preview_rows) {
+      previewBody.innerHTML = data.preview_rows.map((row, idx) => `
+        <tr>
+          <td style="color: var(--text-muted); font-size: 0.8rem;">${idx + 1}</td>
+          <td><strong>${row.Fruit || '-'}</strong></td>
+          <td>${row.Temp || '-'}°C</td>
+          <td>${row['Humidity (%)'] || '-'}%</td>
+          <td>${row['Light (Lux)'] || '-'} Lux</td>
+          <td>${row['CO2 (ppm)'] || '-'} ppm</td>
+          <td>
+            ${row.Class === 'Good' ? '<span class="badge-pill badge-good">✓ Good</span>' : 
+              row.Class === 'Bad' ? '<span class="badge-pill badge-bad">⚠️ Bad</span>' : 
+              `<span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-muted);">${row.Class || 'Unlabelled'}</span>`}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Charts
+    renderAllCharts(data);
+  }
+
+  // Initial Chart Render
+  renderAllCharts(activeAnalysis);
+
+  // Histogram Sensor Toggle Buttons
+  const histButtons = document.querySelectorAll('.hist-btn');
+  histButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      histButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const sensor = btn.dataset.sensor;
+      renderHistogram(activeAnalysis, sensor);
+    });
+  });
+
+  // Table Search Filter
+  const searchInput = document.getElementById('table-search');
+  searchInput.addEventListener('input', (e) => {
+    const val = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('#preview-table-body tr');
+    rows.forEach(r => {
+      r.style.display = r.innerText.toLowerCase().includes(val) ? '' : 'none';
+    });
+  });
+
+  // Upload Handling
+  const fileInput = document.getElementById('dataset-file-input');
+  const btnAnalyze = document.getElementById('btn-run-analysis');
+  const fileChosenText = document.getElementById('file-chosen-text');
+  const alertBox = document.getElementById('validation-alert');
+  const btnReset = document.getElementById('btn-reset-default');
+  let selectedFile = null;
+
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      selectedFile = e.target.files[0];
+      fileChosenText.innerText = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`;
+      btnAnalyze.disabled = false;
+      alertBox.style.display = 'none';
+    }
+  });
+
+  // Drag and drop handling
+  const dropZone = document.getElementById('drop-zone');
+  ['dragenter', 'dragover'].forEach(name => {
+    dropZone.addEventListener(name, (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = C_CYAN;
+    });
+  });
+  ['dragleave', 'drop'].forEach(name => {
+    dropZone.addEventListener(name, (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = 'var(--border-glass)';
+    });
+  });
+  dropZone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files.length > 0) {
+      selectedFile = e.dataTransfer.files[0];
+      fileChosenText.innerText = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`;
+      btnAnalyze.disabled = false;
+      alertBox.style.display = 'none';
+    }
+  });
+
+  // Execute Upload and Real Analysis
+  btnAnalyze.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    btnAnalyze.disabled = true;
+    btnAnalyze.innerHTML = `<span>⏳</span> Validating & Analyzing...`;
+    alertBox.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const resp = await fetch('/api/upload-dataset', {
+        method: 'POST',
+        body: formData
+      });
+      const res = await resp.json();
+
+      if (!resp.ok || !res.success) {
+        // STRICT REJECTION ALERT
+        alertBox.style.display = 'block';
+        alertBox.style.background = 'rgba(244, 63, 94, 0.15)';
+        alertBox.style.border = '1px solid #f43f5e';
+        alertBox.style.color = '#fecdd3';
+        alertBox.innerHTML = `<strong>⚠️ ${res.error || 'Dataset Rejected: Invalid cold-chain schema.'}</strong><br><small style="color: #cbd5e1;">FreshIQ strictly enforces authentic produce cold-chain schemas. Non-matching files (sales, passengers, random logs) will not be accepted.</small>`;
+      } else {
+        // SUCCESSFUL AUTHENTIC ANALYSIS
+        alertBox.style.display = 'block';
+        alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
+        alertBox.style.border = '1px solid #10b981';
+        alertBox.style.color = '#a7f3d0';
+        alertBox.innerHTML = `<strong>✓ ${res.message}</strong>`;
+
+        // Update all charts, KPIs and tables
+        updateUI(res.analysis);
+      }
+    } catch (err) {
+      alertBox.style.display = 'block';
+      alertBox.style.background = 'rgba(244, 63, 94, 0.15)';
+      alertBox.style.border = '1px solid #f43f5e';
+      alertBox.style.color = '#fecdd3';
+      alertBox.innerHTML = `<strong>Network/Server Error:</strong> ${err.message}`;
+    } finally {
+      btnAnalyze.disabled = false;
+      btnAnalyze.innerHTML = `<span>⚡</span> Analyze Uploaded Dataset`;
+    }
+  });
+
+  // Reset to Default Dataset Button
+  btnReset.addEventListener('click', async () => {
+    btnReset.disabled = true;
+    btnReset.innerText = 'Resetting...';
+
+    try {
+      const resp = await fetch('/api/default-dataset');
+      const res = await resp.json();
+      if (res.success) {
+        updateUI(res.analysis);
+        fileChosenText.innerText = 'Choose or Drop Telemetry CSV Dataset File';
+        fileInput.value = '';
+        selectedFile = null;
+        btnAnalyze.disabled = true;
+        alertBox.style.display = 'block';
+        alertBox.style.background = 'rgba(56, 189, 248, 0.15)';
+        alertBox.style.border = '1px solid #38bdf8';
+        alertBox.style.color = '#bae6fd';
+        alertBox.innerHTML = `<strong>✓ Reverted to default cleaned dataset (6,953 rows).</strong>`;
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      btnReset.disabled = false;
+      btnReset.innerHTML = `<span>🔄</span> Reset to Default (6,953 rows)`;
+    }
+  });
+
+});
+</script>
+{% endblock %}

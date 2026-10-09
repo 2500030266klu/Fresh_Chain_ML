@@ -1,0 +1,876 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="container page-content">
+
+  <!-- Header -->
+  <div class="page-header page-header-row">
+    <div>
+      <div class="hero-pill">
+        <span>🏆 Comprehensive ML Architecture Evaluation</span>
+      </div>
+      <h1 class="page-title hero-title">
+        Model Benchmark & <span class="page-title-gradient hero-title-gradient">Evaluation Suite</span>
+      </h1>
+      <p class="page-subtitle hero-subtitle">
+        Empirical evaluation and diagnostic visualization across all 8 supervised architectures 
+        evaluated on an 80/20 stratified split with 5-fold cross-validation on 6,953 sensor readings.
+      </p>
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+      <a href="{{ url_for('main.serve_output_file', filename='FreshIQ_Produce_Spoilage_Intelligence.pptx') }}" download class="btn btn-emerald" style="padding: 0.75rem 1.25rem; font-size: 0.88rem; text-decoration: none;">
+        <span>📊</span> Download Presentation (.pptx)
+      </a>
+      <button id="btn-retrain-models" class="btn btn-primary" style="padding: 0.75rem 1.35rem; font-size: 0.88rem;">
+        <span>🔄</span> Retrain & Benchmark Models
+      </button>
+    </div>
+  </div>
+
+  <!-- Champion Spotlight Banner -->
+  {% set best = metrics_data.best_metrics %}
+  <div class="glass-panel" style="padding: 1.75rem; margin-bottom: 2.5rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%); border-color: rgba(99, 102, 241, 0.4);">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+          <span style="font-size: 1.8rem;">👑</span>
+          <h2 style="font-size: 1.6rem; font-weight: 800;">Production Champion: {{ metrics_data.best_model_name }}</h2>
+          <span class="badge-pill badge-good">Deployed</span>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; max-width: 650px;">
+          Outperformed candidate architectures with optimal balance between generalizability, robust decision boundaries,
+          and resilience to sensor noise.
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+        <div style="text-align: center;">
+          <div style="font-size: 1.8rem; font-weight: 800; font-family: 'JetBrains Mono'; color: var(--emerald-glow);">
+            {{ (best.Accuracy * 100) | round(2) }}%
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Accuracy</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 1.8rem; font-weight: 800; font-family: 'JetBrains Mono'; color: var(--cyan-glow);">
+            {{ (best.F1 * 100) | round(2) }}%
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">F1-Score</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 1.8rem; font-weight: 800; font-family: 'JetBrains Mono'; color: #a78bfa;">
+            {{ (best['CV Accuracy (mean)'] * 100) | round(2) }}%
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">5-Fold CV</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Table -->
+  <div class="glass-panel" style="padding: 1.75rem; margin-bottom: 2.5rem;">
+    <div class="section-header">
+      <div class="section-title">
+        <span>📊</span> 8-Model Comparative Performance Matrix
+      </div>
+      <span class="section-badge">Ranked by F1-Score</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Algorithm</th>
+            <th>Accuracy</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>F1-Score</th>
+            <th>5-Fold CV (Mean ± Std)</th>
+            <th>ROC-AUC</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in metrics_data.leaderboard %}
+          <tr {% if loop.first %}style="background: rgba(99, 102, 241, 0.08); font-weight: 600;"{% endif %}>
+            <td>#{{ loop.index }}</td>
+            <td>
+              <strong>{{ row.Model }}</strong>
+              {% if loop.first %}<span style="color: var(--amber-glow); margin-left: 0.3rem;">★</span>{% endif %}
+            </td>
+            <td>{{ (row.Accuracy * 100) | round(2) }}%</td>
+            <td>{{ (row.Precision * 100) | round(2) }}%</td>
+            <td>{{ (row.Recall * 100) | round(2) }}%</td>
+            <td><strong style="color: var(--emerald-glow);">{{ (row.F1 * 100) | round(2) }}%</strong></td>
+            <td>
+              {{ (row['CV Accuracy (mean)'] * 100) | round(2) }}% 
+              <span style="color: var(--text-muted); font-size: 0.75rem;">&plusmn; {{ (row['CV Accuracy (std)'] * 100) | round(2) }}%</span>
+            </td>
+            <td>{% if row.ROC_AUC %}{{ row.ROC_AUC | round(4) }}{% else %}N/A{% endif %}</td>
+            <td>
+              {% if loop.first %}
+              <span class="badge-pill badge-good">Champion</span>
+              {% else %}
+              <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-secondary);">Evaluated</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  <!-- Model Selection Rationale: Why Each Model Is Used -->
+  <div class="glass-panel" style="padding: 1.75rem; margin-bottom: 2.5rem;">
+    <div class="section-header">
+      <div>
+        <div class="section-title">
+          <span>🧠</span> Model Selection Rationale: Why Each Model Is Used
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+          Brief engineering rationale for the 8 machine learning architectures evaluated in this telemetry system.
+        </p>
+      </div>
+      <span class="section-badge">Architectural Rationale</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem;">
+
+      <!-- Random Forest -->
+      <div style="background: var(--bg-secondary); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">🌲 Random Forest</span>
+            <span class="badge-pill badge-good" style="font-size: 0.72rem;">Champion • Deployed</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;">Ensemble Bagging (300 Trees)</div>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.75rem;">
+            <strong>Why used:</strong> Combines 300 de-correlated decision trees to capture multi-sensor interactions (e.g. Temp × Humidity condensation points). Eliminates overfitting and provides supreme noise tolerance for live IoT telemetry.
+          </p>
+        </div>
+        <div style="font-family: 'JetBrains Mono'; font-size: 0.78rem; color: var(--emerald-glow); border-top: 1px solid var(--border-glass); padding-top: 0.5rem;">
+          Champion F1: 99.7% • Low Variance
+        </div>
+      </div>
+
+      <!-- Decision Tree -->
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">🌳 Decision Tree</span>
+            <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.72rem;">White-Box</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;">CART Recursive Splitter</div>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.75rem;">
+            <strong>Why used:</strong> Complete explainability. Generates transparent, human-readable threshold rules (e.g., CO2 &gt; 350 ppm or Temp &gt; 24°C) to verify that ML logic aligns with post-harvest biological decay science.
+          </p>
+        </div>
+        <div style="font-family: 'JetBrains Mono'; font-size: 0.78rem; color: var(--cyan-glow); border-top: 1px solid var(--border-glass); padding-top: 0.5rem;">
+          F1: 99.7% • Rule Transparent
+        </div>
+      </div>
+
+      <!-- KNN -->
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">📍 K-Nearest Neighbors</span>
+            <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.72rem;">Instance Proximity</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;">Spatial Distance (k=7)</div>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.75rem;">
+            <strong>Why used:</strong> Local cluster verification. Classifies freshness based on Euclidean distance to historical batches, verifying that identical microclimate regimes reliably produce consistent produce outcomes.
+          </p>
+        </div>
+        <div style="font-family: 'JetBrains Mono'; font-size: 0.78rem; color: var(--amber-glow); border-top: 1px solid var(--border-glass); padding-top: 0.5rem;">
+          F1: 99.7% • Metric Clustering
+        </div>
+      </div>
+
+      <!-- Gradient Boosting -->
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">🚀 Gradient Boosting</span>
+            <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.72rem;">Functional Boosting</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;">Sequential Residual Descent</div>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.75rem;">
+            <strong>Why used:</strong> Fits consecutive shallow trees on pseudo-residuals using gradient descent. Optimizes complex non-linear boundary transitions with low bias and high tabular precision.
+          </p>
+        </div>
+        <div style="font-family: 'JetBrains Mono'; font-size: 0.78rem; color: #34d399; border-top: 1px solid var(--border-glass); padding-top: 0.5rem;">
+          F1: 99.6% • Residual Optimization
+        </div>
+      </div>
+
+      <!-- SVM RBF -->
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">⚡ SVM (RBF Kernel)</span>
+            <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.72rem;">Maximum Margin</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;">Kernel Support Vector</div>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.75rem;">
+            <strong>Why used:</strong> Maximum geometric separation. Projects continuous microclimate telemetry into high-dimensional space via Radial Basis Functions to construct optimal margin boundaries between Fresh and Spoiled states.
+          </p>
+        </div>
+        <div style="font-family: 'JetBrains Mono'; font-size: 0.78rem; color: #a78bfa; border-top: 1px solid var(--border-glass); padding-top: 0.5rem;">
+          F1: 99.6% • Margin Robust
+        </div>
+      </div>
+
+      <!-- AdaBoost -->
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">🔥 AdaBoost</span>
+            <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.72rem;">Adaptive Boosting</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;">Sample Re-weighting Stumps</div>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.75rem;">
+            <strong>Why used:</strong> Successively re-weights misclassified telemetry samples, forcing subsequent weak decision stumps to focus specifically on hard edge cases and threshold ambiguities.
+          </p>
+        </div>
+        <div style="font-family: 'JetBrains Mono'; font-size: 0.78rem; color: #f59e0b; border-top: 1px solid var(--border-glass); padding-top: 0.5rem;">
+          F1: 98.3% • Adaptive Weights
+        </div>
+      </div>
+
+      <!-- Logistic Regression -->
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">📈 Logistic Regression</span>
+            <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.72rem;">Linear Baseline</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;">L2-Regularized Logit</div>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.75rem;">
+            <strong>Why used:</strong> Parametric reference floor. Evaluates whether spoilage can be resolved by a simple linear boundary, serving as the empirical baseline to measure non-linear gain.
+          </p>
+        </div>
+        <div style="font-family: 'JetBrains Mono'; font-size: 0.78rem; color: var(--text-secondary); border-top: 1px solid var(--border-glass); padding-top: 0.5rem;">
+          F1: 91.3% • Baseline Floor
+        </div>
+      </div>
+
+      <!-- Ridge Classifier -->
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">📐 Ridge Classifier</span>
+            <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.72rem;">L2 Closed-Form</span>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;">Normal Equations Boundary</div>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 0.75rem;">
+            <strong>Why used:</strong> Converts binary classification into regularized ridge regression via sign-mapping. Solves closed-form normal equations instantly without iterative gradient descent.
+          </p>
+        </div>
+        <div style="font-family: 'JetBrains Mono'; font-size: 0.78rem; color: #818cf8; border-top: 1px solid var(--border-glass); padding-top: 0.5rem;">
+          F1: 87.9% • Closed-Form Normal
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Interactive Model-by-Model Deep Dive Inspector -->
+  <div class="glass-panel" style="padding: 1.75rem; margin-bottom: 2.5rem;">
+    <div class="section-header">
+      <div>
+        <div class="section-title">
+          <span>🔍</span> Architecture Deep Dive & Diagnostic Inspection
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+          Select any of the 8 evaluated architectures to view its live per-class diagnostics, confusion matrix breakdown, 5-fold cross-validation stability, and operational risk metrics.
+        </p>
+      </div>
+      <span class="section-badge">8 Architectures Active</span>
+    </div>
+
+    <!-- Model Selector Tabs -->
+    <div class="model-tabs-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.75rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 1rem;">
+      {% for row in metrics_data.leaderboard %}
+      <button type="button" 
+              class="btn {% if loop.first %}btn-primary active{% else %}btn-secondary{% endif %} model-select-tab" 
+              id="model-tab-btn-{{ loop.index }}"
+              data-target="model-panel-{{ loop.index }}"
+              data-model="{{ row.Model }}"
+              style="font-size: 0.83rem; padding: 0.5rem 0.9rem; display: flex; align-items: center; gap: 0.4rem; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s ease;">
+        <span>
+          {% if row.Model == 'Random Forest' %}🌲
+          {% elif row.Model == 'Decision Tree' %}🌳
+          {% elif row.Model == 'KNN' %}📍
+          {% elif row.Model == 'Gradient Boosting' %}🚀
+          {% elif row.Model == 'SVM (RBF)' %}⚡
+          {% elif row.Model == 'AdaBoost' %}🔥
+          {% elif row.Model == 'Logistic Regression' %}📈
+          {% else %}📐
+          {% endif %}
+        </span>
+        <span style="font-weight: 700;">{{ row.Model }}</span>
+        <span class="badge-pill" style="font-size: 0.68rem; padding: 0.15rem 0.35rem; {% if loop.first %}background: rgba(16, 185, 129, 0.25); color: var(--emerald-glow); border: 1px solid rgba(16, 185, 129, 0.4);{% else %}background: var(--bg-tertiary); color: var(--text-muted);{% endif %}">
+          #{{ loop.index }}{% if loop.first %} ★{% endif %}
+        </span>
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- Dynamic Model Details Panels -->
+    {% for row in metrics_data.leaderboard %}
+    {% set model_name = row.Model %}
+    {% set detail = models_detail.get(model_name, {}) %}
+    {% set cm = detail.get('confusion_matrix', [[0, 0], [0, 0]]) %}
+    {% set cr = detail.get('classification_report', {}) %}
+    {% set tn = cm[0][0] %}
+    {% set fp = cm[0][1] %}
+    {% set fn = cm[1][0] %}
+    {% set tp = cm[1][1] %}
+    {% set total_test = tn + fp + fn + tp %}
+    {% set correct_total = tn + tp %}
+    {% set error_total = fp + fn %}
+
+    <div class="model-panel-view" id="model-panel-{{ loop.index }}" data-model="{{ model_name }}" style="display: {% if loop.first %}block{% else %}none{% endif %};">
+      
+      <!-- Panel Header & Architecture Profile Ribbon -->
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem;">
+            <span style="font-size: 1.4rem;">
+              {% if model_name == 'Random Forest' %}🌲
+              {% elif model_name == 'Decision Tree' %}🌳
+              {% elif model_name == 'KNN' %}📍
+              {% elif model_name == 'Gradient Boosting' %}🚀
+              {% elif model_name == 'SVM (RBF)' %}⚡
+              {% elif model_name == 'AdaBoost' %}🔥
+              {% elif model_name == 'Logistic Regression' %}📈
+              {% else %}📐
+              {% endif %}
+            </span>
+            <h3 style="font-size: 1.25rem; font-weight: 800; margin: 0; color: var(--text-primary);">{{ model_name }}</h3>
+            {% if loop.first %}
+            <span class="badge-pill badge-good" style="font-size: 0.72rem;">Production Champion • Deployed</span>
+            {% else %}
+            <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.72rem;">Rank #{{ loop.index }} Candidate</span>
+            {% endif %}
+          </div>
+          <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0;">
+            {% if model_name == 'Random Forest' %}Ensemble Bagging: 300 non-parametric decision trees with randomized feature subsampling for maximum noise resilience.
+            {% elif model_name == 'Decision Tree' %}White-box CART: Recursive greedy binary partition splits optimizing threshold clarity.
+            {% elif model_name == 'KNN' %}Instance Proximity: Distance-based local density classification (k=7) over normalized environmental space.
+            {% elif model_name == 'Gradient Boosting' %}Sequential Residual Descent: Additive shallow tree ensembles minimizing pseudo-residual loss.
+            {% elif model_name == 'SVM (RBF)' %}Kernel Support Vector: Non-linear dual space projection constructing maximal geometric margin boundaries.
+            {% elif model_name == 'AdaBoost' %}Adaptive Boosting: Sequential sample re-weighting concentrating tree stumps on misclassified boundary cases.
+            {% elif model_name == 'Logistic Regression' %}Parametric Baseline: Generalized linear model with L2 regularization estimating log-odds probability.
+            {% else %}Closed-Form Linear: L2 regularized regression converted to classification via sign decision boundaries.
+            {% endif %}
+          </p>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <div style="background: var(--bg-tertiary); padding: 0.5rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); text-align: center;">
+            <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">CV Stability</div>
+            <div style="font-size: 0.92rem; font-weight: 800; color: var(--emerald-glow); font-family: 'JetBrains Mono';">
+              {{ (row['CV Accuracy (mean)'] * 100) | round(2) }}%
+            </div>
+          </div>
+          <div style="background: var(--bg-tertiary); padding: 0.5rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); text-align: center;">
+            <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">ROC-AUC</div>
+            <div style="font-size: 0.92rem; font-weight: 800; color: var(--cyan-glow); font-family: 'JetBrains Mono';">
+              {% if row.ROC_AUC %}{{ (row.ROC_AUC) | round(4) }}{% else %}N/A{% endif %}
+            </div>
+          </div>
+          <div style="background: var(--bg-tertiary); padding: 0.5rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); text-align: center;">
+            <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">Test Samples</div>
+            <div style="font-size: 0.92rem; font-weight: 800; color: #a78bfa; font-family: 'JetBrains Mono';">
+              {{ total_test }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4-Metric Ribbon for this model -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); padding: 0.85rem; border-radius: var(--radius-sm); text-align: center;">
+          <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Accuracy</div>
+          <div style="font-size: 1.4rem; font-weight: 800; font-family: 'JetBrains Mono'; color: var(--emerald-glow);">{{ (row.Accuracy * 100) | round(2) }}%</div>
+          <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.2rem;">{{ correct_total }}/{{ total_test }} Correct</div>
+        </div>
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); padding: 0.85rem; border-radius: var(--radius-sm); text-align: center;">
+          <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Precision</div>
+          <div style="font-size: 1.4rem; font-weight: 800; font-family: 'JetBrains Mono'; color: var(--cyan-glow);">{{ (row.Precision * 100) | round(2) }}%</div>
+          <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.2rem;">Positive predictive value</div>
+        </div>
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); padding: 0.85rem; border-radius: var(--radius-sm); text-align: center;">
+          <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Recall (Sensitivity)</div>
+          <div style="font-size: 1.4rem; font-weight: 800; font-family: 'JetBrains Mono'; color: #a78bfa;">{{ (row.Recall * 100) | round(2) }}%</div>
+          <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.2rem;">True positive capture</div>
+        </div>
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); padding: 0.85rem; border-radius: var(--radius-sm); text-align: center;">
+          <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">F1-Score</div>
+          <div style="font-size: 1.4rem; font-weight: 800; font-family: 'JetBrains Mono'; color: var(--amber-glow);">{{ (row.F1 * 100) | round(2) }}%</div>
+          <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.2rem;">Harmonic balance</div>
+        </div>
+      </div>
+
+      <!-- Two Primary Visual Inspection Columns -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; align-items: start;">
+        
+        <!-- Column 1: Live Interactive Per-Class Performance Bar Chart (Chart.js) -->
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
+              <span>📊</span> Per-Class Performance Diagnostics
+            </div>
+            <span class="badge-pill" style="background: var(--bg-tertiary); font-size: 0.72rem;">Interactive Chart</span>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+            Direct comparison between Fresh (Good) produce clearance and Spoiled (Bad) produce detection across Precision, Recall, and F1-score.
+          </p>
+
+          <!-- Canvas Container -->
+          <div style="position: relative; height: 260px; width: 100%;">
+            <canvas id="diagChart-{{ loop.index }}"></canvas>
+          </div>
+
+          <!-- Class Breakdown Metrics Cards -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
+            {% if 'Good' in cr %}
+            {% set cr_good = cr['Good'] %}
+            <div style="background: var(--bg-tertiary); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); padding: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                <span style="font-size: 0.82rem; font-weight: 700; color: var(--emerald-glow);">✓ Fresh Produce (Good)</span>
+                <span style="font-size: 0.72rem; color: var(--text-muted); font-family: 'JetBrains Mono';">{{ cr_good.support | round | int }} samples</span>
+              </div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">
+                Precision: <strong>{{ (cr_good.precision * 100) | round(1) }}%</strong><br>
+                Recall: <strong>{{ (cr_good.recall * 100) | round(1) }}%</strong><br>
+                F1-Score: <strong style="color: var(--emerald-glow);">{{ (cr_good['f1-score'] * 100) | round(1) }}%</strong>
+              </div>
+            </div>
+            {% endif %}
+
+            {% if 'Bad' in cr %}
+            {% set cr_bad = cr['Bad'] %}
+            <div style="background: var(--bg-tertiary); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: var(--radius-sm); padding: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                <span style="font-size: 0.82rem; font-weight: 700; color: var(--rose-glow);">⚠️ Spoiled Produce (Bad)</span>
+                <span style="font-size: 0.72rem; color: var(--text-muted); font-family: 'JetBrains Mono';">{{ cr_bad.support | round | int }} samples</span>
+              </div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">
+                Precision: <strong>{{ (cr_bad.precision * 100) | round(1) }}%</strong><br>
+                Recall: <strong>{{ (cr_bad.recall * 100) | round(1) }}%</strong><br>
+                F1-Score: <strong style="color: var(--rose-glow);">{{ (cr_bad['f1-score'] * 100) | round(1) }}%</strong>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Column 2: Operational Decision Matrix & Supply Chain Error Grid -->
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
+              <span>🎯</span> Operational Confusion Matrix & Error Grid
+            </div>
+            {% if detail.plot_cm %}
+            <button type="button" class="btn btn-secondary btn-zoom-plot" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;"
+                    data-img="{{ url_for('main.serve_output_file', filename=detail.plot_cm) }}"
+                    data-title="{{ model_name }} Confusion Matrix Heatmap">
+              🔍 Zoom Heatmap
+            </button>
+            {% endif %}
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+            Real-world cold-chain decision breakdown across 1,391 test samples. Evaluates food safety protection against inventory shrinkage.
+          </p>
+
+          <!-- 2x2 Decision Matrix HUD Grid -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+            <!-- True Negative (Correct Spoiled) -->
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: var(--radius-sm); padding: 0.85rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--emerald-glow);">True Negatives (TN)</span>
+                <span class="badge-pill badge-good" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">Protected</span>
+              </div>
+              <div style="font-size: 1.6rem; font-weight: 800; font-family: 'JetBrains Mono'; color: var(--text-primary); line-height: 1.2;">
+                {{ tn }}
+              </div>
+              <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                <strong>Correct Spoilage Flags:</strong> Rotten produce halted before reaching consumers.
+              </div>
+            </div>
+
+            <!-- False Positive (Type I Error / Missed Spoilage) -->
+            <div style="background: {% if fp == 0 %}rgba(255, 255, 255, 0.03){% else %}rgba(244, 63, 94, 0.1){% endif %}; border: 1px solid {% if fp == 0 %}var(--border-glass){% else %}rgba(244, 63, 94, 0.4){% endif %}; border-radius: var(--radius-sm); padding: 0.85rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: {% if fp == 0 %}var(--text-secondary){% else %}var(--rose-glow){% endif %};">False Positives (FP)</span>
+                <span class="badge-pill" style="background: {% if fp == 0 %}var(--bg-tertiary); color: var(--text-muted);{% else %}rgba(244, 63, 94, 0.25); color: var(--rose-glow);{% endif %} font-size: 0.65rem; padding: 0.1rem 0.35rem;">Type I Risk</span>
+              </div>
+              <div style="font-size: 1.6rem; font-weight: 800; font-family: 'JetBrains Mono'; color: {% if fp == 0 %}var(--text-muted){% else %}var(--rose-glow){% endif %}; line-height: 1.2;">
+                {{ fp }}
+              </div>
+              <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                <strong>Missed Spoilage:</strong> Spoiled items erroneously cleared as fresh (Severe Risk).
+              </div>
+            </div>
+
+            <!-- False Negative (Type II Error / False Alarm) -->
+            <div style="background: {% if fn == 0 %}rgba(255, 255, 255, 0.03){% else %}rgba(245, 158, 11, 0.1){% endif %}; border: 1px solid {% if fn == 0 %}var(--border-glass){% else %}rgba(245, 158, 11, 0.4){% endif %}; border-radius: var(--radius-sm); padding: 0.85rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: {% if fn == 0 %}var(--text-secondary){% else %}var(--amber-glow){% endif %};">False Negatives (FN)</span>
+                <span class="badge-pill" style="background: {% if fn == 0 %}var(--bg-tertiary); color: var(--text-muted);{% else %}rgba(245, 158, 11, 0.25); color: var(--amber-glow);{% endif %} font-size: 0.65rem; padding: 0.1rem 0.35rem;">Type II Risk</span>
+              </div>
+              <div style="font-size: 1.6rem; font-weight: 800; font-family: 'JetBrains Mono'; color: {% if fn == 0 %}var(--text-muted){% else %}var(--amber-glow){% endif %}; line-height: 1.2;">
+                {{ fn }}
+              </div>
+              <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                <strong>False Spoilage Alarms:</strong> Fresh produce wrongly discarded (Shrinkage Waste).
+              </div>
+            </div>
+
+            <!-- True Positive (Correct Fresh) -->
+            <div style="background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.35); border-radius: var(--radius-sm); padding: 0.85rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--cyan-glow);">True Positives (TP)</span>
+                <span class="badge-pill" style="background: rgba(6, 182, 212, 0.2); color: var(--cyan-glow); font-size: 0.65rem; padding: 0.1rem 0.35rem;">Cleared</span>
+              </div>
+              <div style="font-size: 1.6rem; font-weight: 800; font-family: 'JetBrains Mono'; color: var(--text-primary); line-height: 1.2;">
+                {{ tp }}
+              </div>
+              <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                <strong>Correct Fresh Passes:</strong> Crisp, fresh produce delivered to market with full shelf-life.
+              </div>
+            </div>
+          </div>
+
+          <!-- Heatmap Thumbnail Preview Strip -->
+          {% if detail.plot_cm %}
+          <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-tertiary); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 0.5rem 0.85rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <img src="{{ url_for('main.serve_output_file', filename=detail.plot_cm) }}" alt="{{ model_name }} CM thumbnail" 
+                   style="width: 38px; height: 38px; object-fit: cover; border-radius: 4px; background: #ffffff; padding: 2px;">
+              <div>
+                <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary);">Evaluated Heatmap Artifact</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted); font-family: 'JetBrains Mono';">{{ detail.plot_cm }}</div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-zoom-plot" style="padding: 0.3rem 0.75rem; font-size: 0.78rem;"
+                    data-img="{{ url_for('main.serve_output_file', filename=detail.plot_cm) }}"
+                    data-title="{{ model_name }} Confusion Matrix Heatmap">
+              Expand View
+            </button>
+          </div>
+          {% endif %}
+
+        </div>
+
+      </div>
+
+      <!-- Bottom Card: 5-Fold Stability & Engineering Operational Assessment -->
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
+          <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
+            <span>🔬</span> 5-Fold Cross-Validation Stability & Production Profile
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="badge-pill" style="background: rgba(99, 102, 241, 0.15); color: #a78bfa; font-size: 0.75rem;">
+              Mean: {{ (row['CV Accuracy (mean)'] * 100) | round(2) }}%
+            </span>
+            <span class="badge-pill" style="background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.75rem;">
+              Std Dev: &plusmn;{{ (row['CV Accuracy (std)'] * 100) | round(2) }}%
+            </span>
+          </div>
+        </div>
+
+        <!-- Stability Bar -->
+        <div style="margin-bottom: 0.75rem;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+            <span>Cross-Validation Generalization Range (&plusmn;1 Standard Deviation)</span>
+            <span style="font-family: 'JetBrains Mono'; color: var(--emerald-glow);">
+              {{ ((row['CV Accuracy (mean)'] - row['CV Accuracy (std)']) * 100) | round(2) }}% &mdash; {{ ((row['CV Accuracy (mean)'] + row['CV Accuracy (std)']) * 100) | round(2) }}%
+            </span>
+          </div>
+          <div style="height: 8px; background: var(--bg-tertiary); border-radius: 999px; overflow: hidden; position: relative;">
+            <div style="height: 100%; width: {{ (row['CV Accuracy (mean)'] * 100) | round(1) }}%; background: linear-gradient(90deg, #6366f1, #10b981); border-radius: 999px;"></div>
+          </div>
+        </div>
+
+        <p style="font-size: 0.83rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+          {% if model_name == 'Random Forest' %}
+          <strong>Production Takeaway:</strong> Exceptionally low cross-validation dispersion (std dev under 0.1%) proves superior generalization. Combining 300 de-correlated trees insulates the prediction engine against sudden sensor telemetry dropouts or temporary humidity spikes during cold room loading cycles.
+          {% elif model_name == 'Decision Tree' %}
+          <strong>Production Takeaway:</strong> Delivers instant human interpretability with zero latency. Every branch corresponds to transparent biological thresholds (e.g., CO2 concentration over 350 ppm). However, single trees are sensitive to sensor variance without ensemble averaging.
+          {% elif model_name == 'KNN' %}
+          <strong>Production Takeaway:</strong> Strong clustering fidelity with high test accuracy. Memory requirements scale linearly with stored historical sensor logs, making it ideal for centralized warehouse hubs rather than low-memory micro-controllers.
+          {% elif model_name == 'Gradient Boosting' %}
+          <strong>Production Takeaway:</strong> Step-wise residual descent constructs sharp boundary transitions. Minimizes bias with high tabular accuracy, recommended as the primary secondary backup model in automated failover clusters.
+          {% elif model_name == 'SVM (RBF)' %}
+          <strong>Production Takeaway:</strong> Maximizes the geometric boundary margin in projected feature space. Highly resilient to outlying sensor glitches, maintaining rock-solid class separation between fresh and early spoilage phases.
+          {% elif model_name == 'AdaBoost' %}
+          <strong>Production Takeaway:</strong> Iteratively focuses tree stumps on previously misclassified edge cases. Achieves solid accuracy but exhibits slightly higher variance across cross-validation folds on noisy IoT data.
+          {% elif model_name == 'Logistic Regression' %}
+          <strong>Production Takeaway:</strong> Established benchmark floor. Solves linear boundary separation with microsecond response times, demonstrating that while linear trends capture baseline spoilage, non-linear sensor interactions are necessary to reach 99%+ accuracy.
+          {% else %}
+          <strong>Production Takeaway:</strong> Solves regularized normal equations instantly in closed form. Serves as an ultra-fast linear baseline for micro-power embedded sensor gateways.
+          {% endif %}
+        </p>
+      </div>
+
+    </div>
+    {% endfor %}
+
+  </div>
+
+  <!-- Radar Chart & Stability Profile -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem;">
+    <!-- Radar Performance Profile -->
+    <div class="glass-panel" style="padding: 1.5rem;">
+      <div class="section-header">
+        <div class="section-title" style="font-size: 1.1rem;">
+          <span>🕸️</span> Multilateral Metric Radar
+        </div>
+        <span class="section-badge">Top 3 Models</span>
+      </div>
+      <div style="position: relative; height: 320px;">
+        <canvas id="radarChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Multi-Model ROC Overview Card -->
+    <div class="glass-panel" style="padding: 1.5rem; display: flex; flex-direction: column;">
+      <div class="section-header">
+        <div class="section-title" style="font-size: 1.1rem;">
+          <span>📈</span> Multi-Model ROC Comparison
+        </div>
+        <button type="button" class="btn btn-secondary btn-zoom-plot" style="padding: 0.25rem 0.6rem; font-size: 0.75rem;"
+                data-img="{{ url_for('main.serve_output_file', filename='eval_multi_roc_curves.png') }}"
+                data-title="Multi-Model ROC Comparison">
+          🔍 Zoom
+        </button>
+      </div>
+      <div style="flex: 1; display: flex; align-items: center; justify-content: center; background: #ffffff; border-radius: var(--radius-md); padding: 0.5rem;">
+        <img src="{{ url_for('main.serve_output_file', filename='eval_multi_roc_curves.png') }}" alt="Multi-Model ROC Curves" 
+             style="max-width: 100%; max-height: 280px; object-fit: contain;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Full Evaluation Figure Gallery (All 8 Models) -->
+  <div>
+    <div class="section-header">
+      <div>
+        <div class="section-title">
+          <span>📉</span> Complete Evaluation Models & Visualization Gallery
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+          Comprehensive visual analytics including all-model ROC overlays, grouped metric benchmarks, 
+          cross-validation stability distributions, and per-model confusion matrices across all 8 evaluated algorithms.
+        </p>
+      </div>
+      <span class="section-badge">Gallery (All 8 Models)</span>
+    </div>
+
+    <div class="gallery-grid">
+      {% for plot in eval_plots %}
+      {% if plot.exists %}
+      <div class="glass-panel gallery-card">
+        <div class="gallery-img-wrap">
+          <img src="{{ url_for('main.serve_output_file', filename=plot.filename) }}" alt="{{ plot.title }}" class="gallery-img">
+        </div>
+        <div class="gallery-info">
+          <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem;">{{ plot.title }}</h4>
+          <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">{{ plot.description }}</p>
+          <button type="button" class="btn btn-secondary btn-zoom-plot" style="width: 100%; padding: 0.4rem; font-size: 0.8rem;"
+                  data-img="{{ url_for('main.serve_output_file', filename=plot.filename) }}"
+                  data-title="{{ plot.title }}">
+            <span>🔍</span> Expand High-Res
+          </button>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. Model Tab Switcher
+  const tabButtons = document.querySelectorAll('.model-select-tab');
+  const panelViews = document.querySelectorAll('.model-panel-view');
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabButtons.forEach(b => {
+        b.classList.remove('btn-primary', 'active');
+        b.classList.add('btn-secondary');
+      });
+      btn.classList.add('btn-primary', 'active');
+      btn.classList.remove('btn-secondary');
+
+      const targetId = btn.dataset.target;
+      panelViews.forEach(panel => {
+        if (panel.id === targetId) {
+          panel.style.display = 'block';
+        } else {
+          panel.style.display = 'none';
+        }
+      });
+
+      // Resize chart on newly visible panel to prevent canvas distortion
+      if (window.diagCharts && window.diagCharts[targetId]) {
+        window.diagCharts[targetId].resize();
+        window.diagCharts[targetId].update();
+      }
+    });
+  });
+
+  // 2. Initialize Per-Class Diagnostic Bar Charts for All 8 Models
+  window.diagCharts = {};
+  const leaderboardData = {{ metrics_data.leaderboard | tojson }};
+  const modelsDetailData = {{ models_detail | tojson }};
+
+  leaderboardData.forEach((row, idx) => {
+    const loopIndex = idx + 1;
+    const canvasId = `diagChart-${loopIndex}`;
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    const detail = modelsDetailData[row.Model] || {};
+    const cr = detail.classification_report || {};
+    const goodStats = cr.Good || { precision: row.Precision, recall: row.Recall, 'f1-score': row.F1 };
+    const badStats = cr.Bad || { precision: row.Precision, recall: row.Recall, 'f1-score': row.F1 };
+
+    // Determine scale minimum based on model performance
+    const minVal = (row.Model.includes('Ridge') || row.Model.includes('Logistic')) ? 60 : 75;
+
+    const ctx = canvas.getContext('2d');
+    window.diagCharts[`model-panel-${loopIndex}`] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Precision', 'Recall', 'F1-Score'],
+        datasets: [
+          {
+            label: 'Fresh Produce (Good)',
+            data: [
+              Number((goodStats.precision * 100).toFixed(1)),
+              Number((goodStats.recall * 100).toFixed(1)),
+              Number((goodStats['f1-score'] * 100).toFixed(1))
+            ],
+            backgroundColor: 'rgba(16, 185, 129, 0.75)',
+            borderColor: '#10b981',
+            borderWidth: 1.5,
+            borderRadius: 6
+          },
+          {
+            label: 'Spoiled Produce (Bad)',
+            data: [
+              Number((badStats.precision * 100).toFixed(1)),
+              Number((badStats.recall * 100).toFixed(1)),
+              Number((badStats['f1-score'] * 100).toFixed(1))
+            ],
+            backgroundColor: 'rgba(244, 63, 94, 0.75)',
+            borderColor: '#f43f5e',
+            borderWidth: 1.5,
+            borderRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            min: minVal,
+            max: 100,
+            grid: { color: 'rgba(255, 255, 255, 0.08)' },
+            ticks: {
+              color: '#94a3b8',
+              font: { family: 'Plus Jakarta Sans', size: 10 },
+              callback: val => `${val}%`
+            }
+          },
+          x: {
+            grid: { display: false },
+            ticks: {
+              color: '#cbd5e1',
+              font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              color: '#cbd5e1',
+              font: { family: 'Plus Jakarta Sans', size: 11 },
+              usePointStyle: true,
+              boxWidth: 8
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: context => ` ${context.dataset.label}: ${context.raw}%`
+            }
+          }
+        }
+      }
+    });
+  });
+
+  // 3. Radar Chart (Top 3 Models)
+  const top3 = leaderboardData.slice(0, 3);
+  const colors = ['#10b981', '#06b6d4', '#8b5cf6'];
+  const bgColors = ['rgba(16, 185, 129, 0.2)', 'rgba(6, 182, 212, 0.2)', 'rgba(139, 92, 246, 0.2)'];
+
+  const radarDatasets = top3.map((m, idx) => ({
+    label: m.Model,
+    data: [
+      Number((m.Accuracy * 100).toFixed(1)),
+      Number((m.Precision * 100).toFixed(1)),
+      Number((m.Recall * 100).toFixed(1)),
+      Number((m.F1 * 100).toFixed(1)),
+      Number((m['CV Accuracy (mean)'] * 100).toFixed(1))
+    ],
+    borderColor: colors[idx],
+    backgroundColor: bgColors[idx],
+    pointBackgroundColor: colors[idx],
+    borderWidth: 2
+  }));
+
+  const ctxRadar = document.getElementById('radarChart');
+  if (ctxRadar) {
+    new Chart(ctxRadar.getContext('2d'), {
+      type: 'radar',
+      data: {
+        labels: ['Accuracy', 'Precision', 'Recall', 'F1-Score', '5-Fold CV'],
+        datasets: radarDatasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          r: {
+            angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+            pointLabels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } },
+            ticks: { backdropColor: 'transparent', color: '#64748b', stepSize: 10 },
+            min: 70,
+            max: 100
+          }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } } }
+        }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}
